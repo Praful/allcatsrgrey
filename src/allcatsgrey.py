@@ -7,21 +7,23 @@ import argparse
 import contextlib
 import io
 import time
-import html
+# import html
 import traceback
-from datetime import datetime
+# from datetime import datetime
 
 TOTAL_ITEMS = 18961
 DEFAULT_START_PAGE = 1
-DEFAULT_END_PAGE = 0 # 0 = all pages
+DEFAULT_END_PAGE = 0  # 0 = all pages
 DEFAULT_ITEMS_PER_PAGE = 100
 DEFAULT_SLEEP = 3
 TAB = '\t'
 
 ALLCATSGREY_COLLECTION_HOME = f'https://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&pagenum=%s&per_page=%s'
 
+
 def is_blank(s):
     return not (s and s.strip())
+
 
 @contextlib.contextmanager
 def smart_open(filename=None, filemode='w'):
@@ -41,6 +43,7 @@ def smart_open(filename=None, filemode='w'):
     finally:
         if fh is not sys.stdout:
             fh.close()
+
 
 class OutputWriter:
 
@@ -93,7 +96,8 @@ class OutputWriter:
         Create a CSV of episodes scraped
         """
 
-        header_rquired = False if not filename or (filename and os.path.isfile(filename)) else True
+        header_rquired = False if not filename or (
+            filename and os.path.isfile(filename)) else True
         with smart_open(filename, 'a') as output:
             writer = csv.writer(output, delimiter=delim, lineterminator='\r\n')
             if header_rquired:
@@ -115,6 +119,7 @@ def get_page(url):
         return None
     else:
         return BeautifulSoup(response.content, 'html.parser')
+
 
 def scrape_index_data(url):
     #  response = requests.get(url)
@@ -149,11 +154,13 @@ def scrape_index_data(url):
 
         yield data
 
+
 def clean_string(s):
     if s:
         return s.strip(" :\r\xa0")
     else:
         return s
+
 
 def scrape_page_data(url):
     #  print(40 * "-")
@@ -167,16 +174,18 @@ def scrape_page_data(url):
     items = soup.find_all('span', class_='weblib-item-content-element')
     data = {}
     data['URL'] = url
+    content = None
     for item in items:
-        heading = clean_string(item.find('span', class_='weblib-item-left-head').text)
+        heading = clean_string(
+            item.find('span', class_='weblib-item-left-head').text)
 
-        value=""
+        value = ""
         tag = 'div' if heading == 'Description' else 'span'
         content = item.find(tag, class_='weblib-item-left-content')
         if content:
             value = clean_string(content.text)
 
-        data[heading]=value
+        data[heading] = value
 
     keywords = soup.find('p', class_='weblib-item-keyword-list')
     if keywords:
@@ -185,9 +194,9 @@ def scrape_page_data(url):
     if content and 'Download Item' in content.text:
         download_url = content.a['href']
         if download_url.startswith('http://allcatsrgrey.org.uk/wp/download/'):
-            # The download urls are wrong: the urls should be 
-            # #http://allcatsrgrey.org.uk/wp/downloads/. However, correcting it takes you 
-            # to another webpage with information about the document. You then have to 
+            # The download urls are wrong: the urls should be
+            # #http://allcatsrgrey.org.uk/wp/downloads/. However, correcting it takes you
+            # to another webpage with information about the document. You then have to
             # click on a link to get the actual document.
             corrected_url = download_url.replace('download', 'downloads')
             # get page describing document we want to download
@@ -198,7 +207,7 @@ def scrape_page_data(url):
                 if download:
                     download_url = download['href']
 
-        data['Download']=download_file(download_url)
+        data['Download'] = download_file(download_url)
 
     if 'Title' in data:
         print('-- Retrieved title:', data['Title'])
@@ -212,7 +221,8 @@ def download_file(url):
         url_clean = url.strip()
         if url_clean:
             #  os.system('wget --append-output=wget-output.log --no-verbose --directory-prefix=docs %s' % url_clean)
-            os.system('wget --no-verbose --directory-prefix=docs %s' % url_clean)
+            os.system('wget --no-verbose --directory-prefix=docs %s' %
+                      url_clean)
 
             doc_name = url_clean.rsplit('/', 1)[-1]
             file = os.path.join('.', 'docs', doc_name)
@@ -228,17 +238,19 @@ def download_file(url):
     except Exception as e:
         return f'Error downloading {url}: {e}'
 
+
 def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
 
-    calc_end_page = (TOTAL_ITEMS//items_per_page)+1 if end_page==0 else end_page
+    calc_end_page = (TOTAL_ITEMS//items_per_page) + \
+        1 if end_page == 0 else end_page + 1
 
     writer = OutputWriter()
 
     for page in range(start_page, calc_end_page):
         print('============= Processing page', page)
-        url = ALLCATSGREY_COLLECTION_HOME % (start_page, items_per_page)
+        url = ALLCATSGREY_COLLECTION_HOME % (page, items_per_page)
         #  print(url)
-        index = (page-1) * items_per_page + 1 
+        index = (page-1) * items_per_page + 1
         index_list = scrape_index_data(url)
         page_data = []
         try:
@@ -249,10 +261,11 @@ def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
                 except Exception as e:
                     print('Error fetching page', item, e)
                     traceback.print_exc()
-        finally: 
+        finally:
             writer.as_csv(page_data, index, csv_filename)
-        
+
         time.sleep(sleep)
+
 
 def setup_command_line():
     """
@@ -279,8 +292,8 @@ def main():
     Processing begins here if script run directly
     """
     args = setup_command_line().parse_args()
-    get_all_data(args.output, args.start_page, args.end_page, args.items_per_page, args.sleep)
-
+    get_all_data(args.output, args.start_page, args.end_page,
+                 args.items_per_page, args.sleep)
 
 
 if __name__ == '__main__':
