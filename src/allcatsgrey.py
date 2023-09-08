@@ -242,11 +242,11 @@ def download_file(url):
 def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
 
     calc_end_page = (TOTAL_ITEMS//items_per_page) + \
-        1 if end_page == 0 else end_page + 1
+        1 if end_page == 0 else end_page
 
     writer = OutputWriter()
 
-    for page in range(start_page, calc_end_page):
+    for page in range(start_page, calc_end_page + 1):
         print('============= Processing page', page)
         url = ALLCATSGREY_COLLECTION_HOME % (page, items_per_page)
         #  print(url)
