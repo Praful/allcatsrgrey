@@ -7,14 +7,12 @@ import argparse
 import contextlib
 import io
 import time
-# import html
 import traceback
-# from datetime import datetime
 
 TOTAL_ITEMS = 18961
 DEFAULT_START_PAGE = 1
-DEFAULT_END_PAGE = 0  # 0 = all pages
-DEFAULT_ITEMS_PER_PAGE = 100
+DEFAULT_END_PAGE = 2  # 0 = all pages
+DEFAULT_ITEMS_PER_PAGE = 10
 DEFAULT_SLEEP = 3
 TAB = '\t'
 
@@ -33,7 +31,6 @@ def smart_open(filename=None, filemode='w'):
     """
 
     if filename and filename != '-':
-        #  fh = open(filename, 'w')
         fh = io.open(filename, newline='', mode=filemode, encoding="utf-8")
     else:
         fh = sys.stdout
@@ -47,6 +44,9 @@ def smart_open(filename=None, filemode='w'):
 
 class OutputWriter:
 
+    FIELDS=['Index', 'Title','Description','Download','Author','Published','Status','Subject','Category',
+            'Media','ISBN','CallNumber','Type','Keywords','URL','Error']
+        
     def as_row(self, item, index):
         """
         Converts castaway to an array, which maps to a row in a CSV file
@@ -54,42 +54,15 @@ class OutputWriter:
         def value(key):
             return item[key] if key in item else ""
 
-        result = []
+        values = [value(field) for field in self.FIELDS]
 
-        result.append(index)
-        result.append(value('Title'))
-        result.append(value('Description'))
-        result.append(value('Download'))
-        result.append(value('Author'))
-        result.append(value('Published'))
-        result.append(value('Status'))
-        result.append(value('Media'))
-        result.append(value('Call Number'))
-        result.append(value('Type'))
-        result.append(value('Keywords'))
-        result.append(value('URL'))
-
-        return result
+        return [index, *values]
 
     def csv_header(self):
         """
         Return header row for CSV file
         """
-        result = []
-        result.append('')
-        result.append('Title')
-        result.append('Description')
-        result.append('Document')
-        result.append('Author')
-        result.append('Published')
-        result.append('Status')
-        result.append('Media')
-        result.append('Call Number')
-        result.append('Type')
-        result.append('Keywords')
-        result.append('URL')
-
-        return result
+        return self.FIELDS
 
     def as_csv(self, items, index, filename=None, delim=TAB):
         """
@@ -122,8 +95,6 @@ def get_page(url):
 
 
 def scrape_index_data(url):
-    #  response = requests.get(url)
-    #  soup = BeautifulSoup(response.content, 'html.parser')
     soup = get_page(url)
 
     if soup == None:
@@ -132,7 +103,6 @@ def scrape_index_data(url):
     items = soup.find_all('div', class_='weblib-item-row')
 
     for item in items:
-        #  print(40 * "-")
         spans = item.find_all('span')
         url = spans[2].a['href']
         title = spans[2].a.text
@@ -162,61 +132,62 @@ def clean_string(s):
         return s
 
 
-def scrape_page_data(url):
-    #  print(40 * "-")
-    #  print('Getting item', url)
-
-    soup = get_page(url)
-    if not soup:
-        print(f'Page not found: {url}')
-        return {}
-
-    items = soup.find_all('span', class_='weblib-item-content-element')
+def scrape_page_data(url, index):
     data = {}
     data['URL'] = url
-    content = None
-    for item in items:
-        heading = clean_string(
-            item.find('span', class_='weblib-item-left-head').text)
 
-        value = ""
-        tag = 'div' if heading == 'Description' else 'span'
-        content = item.find(tag, class_='weblib-item-left-content')
-        if content:
-            value = clean_string(content.text)
+    try:
+        soup = get_page(url)
+        if not soup:
+            raise Exception(f'Page not found: {url}')
 
-        data[heading] = value
+        items = soup.find_all('span', class_='weblib-item-content-element')
+        content = None
+        for item in items:
+            heading = clean_string(
+                item.find('span', class_='weblib-item-left-head').text)
 
-    keywords = soup.find('p', class_='weblib-item-keyword-list')
-    if keywords:
-        data['Keywords'] = clean_string(keywords.text)
+            value = ""
+            tag = 'div' if heading == 'Description' else 'span'
+            content = item.find(tag, class_='weblib-item-left-content')
+            if content:
+                value = clean_string(content.text)
 
-    if content and 'Download Item' in content.text:
-        download_url = content.a['href']
-        if download_url.startswith('http://allcatsrgrey.org.uk/wp/download/'):
-            # The download urls are wrong: the urls should be
-            # #http://allcatsrgrey.org.uk/wp/downloads/. However, correcting it takes you
-            # to another webpage with information about the document. You then have to
-            # click on a link to get the actual document.
-            corrected_url = download_url.replace('download', 'downloads')
-            # get page describing document we want to download
-            soup2 = get_page(corrected_url)
-            # now get the url for the document to be downloaded
-            if soup2:
-                download = soup2.find('a', class_='wpfb-flatbtn')
-                if download:
-                    download_url = download['href']
+            data[heading] = value
 
-        data['Download'] = download_file(download_url)
+        keywords = soup.find('p', class_='weblib-item-keyword-list')
+        if keywords:
+            data['Keywords'] = clean_string(keywords.text)
+
+        if content and 'Download Item' in content.text:
+            download_url = content.a['href']
+            if download_url.startswith('http://allcatsrgrey.org.uk/wp/download/'):
+                # The download urls are wrong: the urls should be
+                # #http://allcatsrgrey.org.uk/wp/downloads/. However, correcting it takes you
+                # to another webpage with information about the document. You then have to
+                # click on a link to get the actual document.
+                corrected_url = download_url.replace('download', 'downloads')
+                # get page describing document we want to download
+                soup2 = get_page(corrected_url)
+                # now get the url for the document to be downloaded
+                if soup2:
+                    download = soup2.find('a', class_='wpfb-flatbtn')
+                    if download:
+                        download_url = download['href']
+
+            data['Download'] = download_file(download_url)
+
+    except Exception as e:
+        traceback.print_exc()
+        data['Error'] = repr(traceback.format_exception(e))
 
     if 'Title' in data:
-        print('-- Retrieved title:', data['Title'])
+        print(index, ' -- Retrieved title:', data['Title'])
 
     return data
 
 
 def download_file(url):
-    #  print('Downloading %s' % url)
     try:
         url_clean = url.strip()
         if url_clean:
@@ -226,14 +197,11 @@ def download_file(url):
 
             doc_name = url_clean.rsplit('/', 1)[-1]
             file = os.path.join('.', 'docs', doc_name)
-            #  print(file)
             if os.path.isfile(file):
                 return file
             else:
-                #  print('Warning: file not downloaded: ', url_clean)
                 return f'Warning: file not downloaded: {url_clean}'
         else:
-            #  print('Warning: Blank URL provided')
             return 'Warning: Blank URL provided'
     except Exception as e:
         return f'Error downloading {url}: {e}'
@@ -249,15 +217,14 @@ def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
     for page in range(start_page, calc_end_page + 1):
         print('============= Processing page', page)
         url = ALLCATSGREY_COLLECTION_HOME % (page, items_per_page)
-        #  print(url)
+
         index = (page-1) * items_per_page + 1
         index_list = scrape_index_data(url)
         page_data = []
         try:
-            for item in index_list:
-                #  print(item)
+            for i, item in enumerate(index_list):
                 try:
-                    page_data.append(scrape_page_data(item['url']))
+                    page_data.append(scrape_page_data(item['url'], index + i))
                 except Exception as e:
                     print('Error fetching page', item, e)
                     traceback.print_exc()
@@ -271,18 +238,24 @@ def setup_command_line():
     """
     Define command line switches
     """
-    cmdline = argparse.ArgumentParser(prog='allcatsgrey web scraper')
+    cmdline = argparse.ArgumentParser(prog='allcatsgrey.py')
     cmdline.add_argument('--csv', dest='output',
                          help='Filename of CSV file (tab-separated). The file will be appended '
                          'to if it exists (default output is to console)')
     cmdline.add_argument('--start-page', type=int, default=DEFAULT_START_PAGE,
-                         help=f'First page to scrape episodes from (default is {DEFAULT_START_PAGE})')
+                         help=f'First page to scrape data from (default is {DEFAULT_START_PAGE})')
     cmdline.add_argument('--end-page', type=int, default=DEFAULT_END_PAGE,
-                         help=f'Last page to scrape episodes from (default is {DEFAULT_START_PAGE})')
+                         help=f'Last page to scrape episodes from (default is {DEFAULT_END_PAGE})')
     cmdline.add_argument('--items-per-page', type=int, default=DEFAULT_ITEMS_PER_PAGE,
                          help=f'Fo each page, fetch this many entries (default is {DEFAULT_ITEMS_PER_PAGE})')
     cmdline.add_argument('--sleep', type=int, default=DEFAULT_SLEEP,
                          help=f'Time to pause (in seconds) between fetching pages (default is {DEFAULT_SLEEP} seconds)')
+    cmdline.add_argument('--url', dest='url', help='URL of the page to scrape. If specified, the other options are ignored.')
+
+    #  if len(sys.argv) < 2:
+    #
+        #  cmdline.print_help()
+        #  sys.exit(1)
 
     return cmdline
 
@@ -292,8 +265,12 @@ def main():
     Processing begins here if script run directly
     """
     args = setup_command_line().parse_args()
-    get_all_data(args.output, args.start_page, args.end_page,
-                 args.items_per_page, args.sleep)
+
+    if args.url:
+        print(scrape_page_data(args.url))
+    else:
+        get_all_data(args.output, args.start_page, args.end_page,
+                    args.items_per_page, args.sleep)
 
 
 if __name__ == '__main__':
@@ -306,5 +283,5 @@ if __name__ == '__main__':
 #  url = 'https://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&barcode=0000000000000002'
 #  scrape_page_data(url)
 #
-    url = 'http://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&barcode=0000000000000011'
+    #  url = 'http://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&barcode=0000000000000011'
     #  scrape_page_data(url)
