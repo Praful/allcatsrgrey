@@ -44,19 +44,17 @@ def smart_open(filename=None, filemode='w'):
 
 class OutputWriter:
 
-    FIELDS=['Index', 'Title','Description','Download','Author','Published','Status','Subject','Category',
-            'Media','ISBN','CallNumber','Type','Keywords','URL','Error']
+    FIELDS=['Index', 'Title','Description','Author','Published','Status','Subject','Category',
+            'Media','ISBN','Call Number','Type','Keywords','Download','URL','Error']
         
-    def as_row(self, item, index):
+    def as_row(self, item):
         """
         Converts castaway to an array, which maps to a row in a CSV file
         """
         def value(key):
             return item[key] if key in item else ""
 
-        values = [value(field) for field in self.FIELDS]
-
-        return [index, *values]
+        return [value(field) for field in self.FIELDS]
 
     def csv_header(self):
         """
@@ -64,7 +62,7 @@ class OutputWriter:
         """
         return self.FIELDS
 
-    def as_csv(self, items, index, filename=None, delim=TAB):
+    def as_csv(self, items, filename=None, delim=TAB):
         """
         Create a CSV of episodes scraped
         """
@@ -77,8 +75,7 @@ class OutputWriter:
                 writer.writerow(self.csv_header())
 
             for item in items:
-                writer.writerow(self.as_row(item, index))
-                index += 1
+                writer.writerow(self.as_row(item))
 
 
 def get_page(url):
@@ -132,9 +129,10 @@ def clean_string(s):
         return s
 
 
-def scrape_page_data(url, index):
+def scrape_page_data(url, index=1):
     data = {}
     data['URL'] = url
+    data['Index'] = index
 
     try:
         soup = get_page(url)
@@ -229,7 +227,7 @@ def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
                     print('Error fetching page', item, e)
                     traceback.print_exc()
         finally:
-            writer.as_csv(page_data, index, csv_filename)
+            writer.as_csv(page_data, csv_filename)
 
         time.sleep(sleep)
 
