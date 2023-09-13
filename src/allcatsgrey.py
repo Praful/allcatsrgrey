@@ -9,97 +9,18 @@ import io
 import time
 import traceback
 import re
+from utils import *
 
 TOTAL_ITEMS = 18961
 DEFAULT_START_PAGE = 1
 DEFAULT_END_PAGE = 2  # 0 = all pages
 DEFAULT_ITEMS_PER_PAGE = 10
 DEFAULT_SLEEP = 3
-TAB = '\t'
-
+DOWNLOAD_DIR = 'docs'
+HEADER=['Index', 'Title','Description','Author','Published','Status','Subject','Category',
+            'Media','ISBN','Call Number','Type','Keywords','Download','URL','Error']
 ALLCATSGREY_COLLECTION_HOME = f'https://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&pagenum=%s&per_page=%s'
 
-
-def is_blank(s):
-    return not (s and s.strip())
-
-def to_hex(s):
-    return s.encode("utf-8").hex()
-
-#  replchars = re.compile(r'[\n\r]')
-replchars = re.compile(r'[\x00-\x1f]') 
-def replchars_to_hex(match):
-    return r'\x{0:02x}'.format(ord(match.group()))
-
-def ctrl_chars(s):
-    return replchars.sub(replchars_to_hex, s)
-
-@contextlib.contextmanager
-def smart_open(filename=None, filemode='w'):
-    """
-    Return handle to file (if specified) or sys output
-    From https://stackoverflow.com/questions/17602878/how-to-handle-both-with-open-and-sys-stdout-nicely/17603000
-    """
-
-    if filename and filename != '-':
-        fh = io.open(filename, newline='', mode=filemode, encoding="utf-8")
-    else:
-        fh = sys.stdout
-
-    try:
-        yield fh
-    finally:
-        if fh is not sys.stdout:
-            fh.close()
-
-
-class OutputWriter:
-
-    FIELDS=['Index', 'Title','Description','Author','Published','Status','Subject','Category',
-            'Media','ISBN','Call Number','Type','Keywords','Download','URL','Error']
-        
-    def as_row(self, item):
-        """
-        Converts castaway to an array, which maps to a row in a CSV file
-        """
-        def value(key):
-            return item[key] if key in item else ""
-
-        return [value(field) for field in self.FIELDS]
-
-    def csv_header(self):
-        """
-        Return header row for CSV file
-        """
-        return self.FIELDS
-
-    def as_csv(self, items, filename=None, delim=TAB):
-        """
-        Create a CSV of episodes scraped
-        """
-
-        header_rquired = False if not filename or (
-            filename and os.path.isfile(filename)) else True
-        with smart_open(filename, 'a') as output:
-            writer = csv.writer(output, delimiter=delim, lineterminator='\r\n')
-            if header_rquired:
-                writer.writerow(self.csv_header())
-
-            for item in items:
-                writer.writerow(self.as_row(item))
-
-
-def get_page(url):
-    def page_found(code):
-        return code == 200
-
-    response = requests.get(url)
-
-    if not page_found(response.status_code):
-        print(f'Warning: status {response.status_code} for {url}')
-        return None
-    else:
-        return BeautifulSoup(response.content, 'html.parser')
 
 
 def scrape_index_data(url):
@@ -131,14 +52,6 @@ def scrape_index_data(url):
         }
 
         yield data
-
-
-def clean_string(s):
-    if s:
-        return s.strip(" :\r\xa0")
-    else:
-        return s
-
 
 def scrape_page_data(url, index=1):
     data = {}
@@ -187,7 +100,7 @@ def scrape_page_data(url, index=1):
                     if download:
                         download_url = download['href']
 
-            data['Download'] = download_file(download_url)
+            data['Download'] = download_file(download_url, DOWNLOAD_DIR)
 
     except Exception as e:
         traceback.print_exc()
@@ -199,32 +112,12 @@ def scrape_page_data(url, index=1):
     return data
 
 
-def download_file(url):
-    try:
-        url_clean = url.strip()
-        if url_clean:
-            #  os.system('wget --append-output=wget-output.log --no-verbose --directory-prefix=docs %s' % url_clean)
-            os.system('wget --no-verbose --directory-prefix=docs %s' %
-                      url_clean)
-
-            doc_name = url_clean.rsplit('/', 1)[-1]
-            file = os.path.join('.', 'docs', doc_name)
-            if os.path.isfile(file):
-                return file
-            else:
-                return f'Warning: file not downloaded: {url_clean}'
-        else:
-            return 'Warning: Blank URL provided'
-    except Exception as e:
-        return f'Error downloading {url}: {e}'
-
-
 def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
 
     calc_end_page = (TOTAL_ITEMS//items_per_page) + \
         1 if end_page == 0 else end_page
 
-    writer = OutputWriter()
+    writer = OutputWriter(HEADER)
 
     for page in range(start_page, calc_end_page + 1):
         print('============= Processing page', page)
@@ -259,15 +152,11 @@ def setup_command_line():
     cmdline.add_argument('--end-page', type=int, default=DEFAULT_END_PAGE,
                          help=f'Last page to scrape episodes from (default is {DEFAULT_END_PAGE})')
     cmdline.add_argument('--items-per-page', type=int, default=DEFAULT_ITEMS_PER_PAGE,
-                         help=f'Fo each page, fetch this many entries (default is {DEFAULT_ITEMS_PER_PAGE})')
+                         help=f'For each page, fetch this many entries (default is {DEFAULT_ITEMS_PER_PAGE})')
     cmdline.add_argument('--sleep', type=int, default=DEFAULT_SLEEP,
                          help=f'Time to pause (in seconds) between fetching pages (default is {DEFAULT_SLEEP} seconds)')
     cmdline.add_argument('--url', dest='url', help='URL of the page to scrape. If specified, the other options are ignored.')
 
-    #  if len(sys.argv) < 2:
-    #
-        #  cmdline.print_help()
-        #  sys.exit(1)
 
     return cmdline
 
@@ -288,12 +177,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-#  url = 'https://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&barcode=0000000000000004'
-#  scrape_page_data(url)
-
-
-#  url = 'https://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&barcode=0000000000000002'
-#  scrape_page_data(url)
-#
-    #  url = 'http://allcatsrgrey.org.uk/wp/find-grey-literature/?searchby=title&searchbox&weblib_orderby=barcode&weblib_order=ASC&barcode=0000000000000011'
-    #  scrape_page_data(url)
