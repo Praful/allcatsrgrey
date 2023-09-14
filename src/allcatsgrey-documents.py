@@ -9,23 +9,44 @@ import time
 from utils import *
 
 DEFAULT_SLEEP = 3
+DEFAULT_METHOD = 'archive'
 TAB = '\t'
-
 DOWNLOAD_DIR = 'archive-docs'
-ARCHIVE_HOME_URL ='https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127'
+REGION_URL ='https://allcatsrgrey.org.uk/wp/find-grey-literature/'
+ARCHIVE_URL ='https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127'
 
 HEADER = ['Title', 'Date', 'Categories', 'URL', 'Error']
 
-def scrape_archive_urls(url):
+def region_urls(url):
     soup = get_page(url)
 
     if soup is None:
-        return {}
+        return []
+    
+    container = soup.find_all('li', class_='menu-item')
+    if container:
+        for listitem in container:
+            for link in listitem.find_all('a'):
+                if link.text == 'The Collection':
+                    print("found")
+                    ul = listitem.find('ul')
+                    return [a['href'] for a in ul.find_all('a')]
+
+    return []
+
+def archive_urls(url):
+    soup = get_page(url)
+
+    if soup is None:
+        return []
 
     archive = soup.find('div', id='secondary')
     links = archive.find_all('a')
-    
-    return [item['href'] for item in links]
+
+    if links: 
+        return [item['href'] for item in links]
+
+    return []
 
 
 def get_next_url(soup):
@@ -39,7 +60,7 @@ def get_next_url(soup):
 
 items_processed = 0
 
-def scrape_archive_month(url):
+def scrape_articles_from_pages(url):
     global items_processed
     print('============= Processing page:', url)
     next_url = url
@@ -82,18 +103,15 @@ def scrape_archive_month(url):
     print(items_processed, 'items processed')
     return article_list
 
-
-
-def get_all_data(csv_filename, sleep):
-
+def scrape_all_articles(csv_filename, sleep, urls):
     writer = OutputWriter(HEADER)
-    index_list = scrape_archive_urls(ARCHIVE_HOME_URL)
-    for url in index_list:
+
+    for url in urls:
         data=[]
         try:
-            data = scrape_archive_month(url)
+            data = scrape_articles_from_pages(url)
             #TODO
-            break # just do first page for now
+            #  break # just do first page for now
         except Exception as e:
             print('Error fetching page', url, e)
             traceback.print_exc()
@@ -101,9 +119,6 @@ def get_all_data(csv_filename, sleep):
             writer.as_csv(data, csv_filename)
 
         time.sleep(sleep)
-    
-
-    print('Total items processed:', items_processed)
 
 def setup_command_line():
     """
@@ -116,6 +131,8 @@ def setup_command_line():
     cmdline.add_argument('--sleep', type=int, default=DEFAULT_SLEEP,
                          help=f'Time to pause (in seconds) between fetching pages (default is {DEFAULT_SLEEP} seconds)')
     cmdline.add_argument('--url', dest='url', help='URL of the page to scrape. If specified, the other options are ignored.')
+    cmdline.add_argument('--method', dest='method',
+                         help=f'Grab document data either from archive or region section of website (default is {DEFAULT_METHOD})')
 
     return cmdline
 
@@ -127,9 +144,17 @@ def main():
     args = setup_command_line().parse_args()
 
     if args.url:
-        print(scrape_archive_month(args.url))
+        print(scrape_articles_from_pages(args.url))
     else:
-        get_all_data(args.output, args.sleep)
+        if args.method == 'archive':
+            urls = archive_urls(ARCHIVE_URL)
+        elif args.method == 'region':
+            urls = region_urls(REGION_URL)
+        else:
+            print('Invalid method specified. Must be archive or region')
+            sys.exit(1)
+
+        scrape_all_articles(args.output, args.sleep, urls)
 
 
 if __name__ == '__main__':
