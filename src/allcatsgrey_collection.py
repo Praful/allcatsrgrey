@@ -1,3 +1,12 @@
+"""
+=============================================================================
+File: allcatsrgrey_collection.py
+Description: Scrapes bibliographic informaton about the collection on allcatsrgrey.org.uk. 
+Author: Praful https://github.com/Praful/allcatsrgrey
+Licence: GPL v3
+=============================================================================
+"""
+
 import os
 import sys
 import requests
@@ -117,7 +126,7 @@ def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
     calc_end_page = (TOTAL_ITEMS//items_per_page) + \
         1 if end_page == 0 else end_page
 
-    writer = OutputWriter(HEADER)
+    writer = OutputWriter(HEADER, csv_filename)
 
     for page in range(start_page, calc_end_page + 1):
         print('============= Processing page', page)
@@ -134,7 +143,7 @@ def get_all_data(csv_filename, start_page, end_page, items_per_page, sleep):
                     print('Error fetching page', item, e)
                     traceback.print_exc()
         finally:
-            writer.as_csv(page_data, csv_filename)
+            writer.as_csv(page_data)
 
         time.sleep(sleep)
 
@@ -150,7 +159,7 @@ def setup_command_line():
     cmdline.add_argument('--start-page', type=int, default=DEFAULT_START_PAGE,
                          help=f'First page to scrape data from (default is {DEFAULT_START_PAGE})')
     cmdline.add_argument('--end-page', type=int, default=DEFAULT_END_PAGE,
-                         help=f'Last page to scrape episodes from (default is {DEFAULT_END_PAGE})')
+                         help=f'Last page to scrape episodes from (default is {DEFAULT_END_PAGE}). Set to 0 for all pages.')
     cmdline.add_argument('--items-per-page', type=int, default=DEFAULT_ITEMS_PER_PAGE,
                          help=f'For each page, fetch this many entries (default is {DEFAULT_ITEMS_PER_PAGE})')
     cmdline.add_argument('--sleep', type=int, default=DEFAULT_SLEEP,

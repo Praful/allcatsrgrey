@@ -1,3 +1,12 @@
+"""
+=============================================================================
+File: utils.py
+Description: A collection of utility functions.
+Author: Praful https://github.com/Praful/allcatsrgrey
+Licence: GPL v3
+
+=============================================================================
+"""
 import os
 import sys
 from bs4 import BeautifulSoup
@@ -8,6 +17,23 @@ import re
 import requests
 
 TAB = '\t'
+
+def file_to_array(filename, strip=False):
+    """ return list of strings, one line per list entry"""
+    result = []
+    with open(filename) as f:
+        for line in f:
+            l = line
+            if strip:
+                l = line.strip()
+            result.append(l)
+
+    return result
+
+def array_to_file(filename, array):
+    with open(filename, 'w') as f:
+        for item in array:
+            f.write(item + '\n')
 
 def is_blank(s):
     return not (s and s.strip())
@@ -49,8 +75,10 @@ def smart_open(filename=None, filemode='w'):
 
 
 class OutputWriter:
-    def __init__(self, fields):
-        self.fields = fields
+    def __init__(self, header, filename=None, delim=TAB):
+        self.header = header
+        self.filename = filename
+        self.delim = delim
 
 
     def as_row(self, item):
@@ -60,23 +88,23 @@ class OutputWriter:
         def value(key):
             return item[key] if key in item else ""
 
-        return [value(field) for field in self.fields]
+        return [value(field) for field in self.header]
 
     def csv_header(self):
         """
         Return header row for CSV file
         """
-        return self.fields
+        return self.header
 
-    def as_csv(self, items, filename=None, delim=TAB):
+    def as_csv(self, items):
         """
         Create a CSV of episodes scraped
         """
 
-        header_rquired = False if not filename or (
-            filename and os.path.isfile(filename)) else True
-        with smart_open(filename, 'a') as output:
-            writer = csv.writer(output, delimiter=delim, lineterminator='\r\n')
+        header_rquired = False if not self.filename or (
+            self.filename and os.path.isfile(self.filename)) else True
+        with smart_open(self.filename, 'a') as output:
+            writer = csv.writer(output, delimiter=self.delim, lineterminator='\r\n')
             if header_rquired:
                 writer.writerow(self.csv_header())
 
@@ -84,16 +112,16 @@ class OutputWriter:
                 writer.writerow(self.as_row(item))
 
 
-def download_file(url, dir):
+def download_file(url, folder):
     try:
         url_clean = url.strip()
         if url_clean:
             #  os.system('wget --append-output=wget-output.log --no-verbose --directory-prefix=docs %s' % url_clean)
             os.system('wget --no-verbose --directory-prefix=%s %s' %
-                      (dir, url_clean))
+                      (folder, url_clean))
 
             doc_name = url_clean.rsplit('/', 1)[-1]
-            file = os.path.join('.', dir, doc_name)
+            file = os.path.join('.', folder, doc_name)
             if os.path.isfile(file):
                 return file
             else:
