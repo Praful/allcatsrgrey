@@ -104,7 +104,6 @@ def scrape_articles_from_pages(url, do_download):
                         datetime = article.find('time', class_='entry-date published')
                         item['Date'] = datetime['datetime'] if datetime else ''
 
-                        #  TODO do we need to download these?
                         if do_download and 'URL' in item:
                             download_status = download_file(item['URL'], DOWNLOAD_DIR)
                         categories = article.find('span', class_='category')
