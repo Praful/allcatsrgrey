@@ -22,6 +22,7 @@ from category_urls import category_urls
 
 DEFAULT_SLEEP = 3
 DEFAULT_METHOD = 'archive'
+DEFAULT_DOWNLOAD = False
 TAB = '\t'
 DOWNLOAD_DIR = 'archive-docs'
 REGION_URL ='https://allcatsrgrey.org.uk/wp/find-grey-literature/'
@@ -82,7 +83,7 @@ def get_next_url(soup):
 
 items_processed = 0
 
-def scrape_articles_from_pages(url):
+def scrape_articles_from_pages(url, do_download):
     global items_processed
     print('============= Processing page:', url)
     next_url = url
@@ -104,7 +105,8 @@ def scrape_articles_from_pages(url):
                         item['Date'] = datetime['datetime'] if datetime else ''
 
                         #  TODO do we need to download these?
-                        #  download_status = download_file(url, DOWNLOAD_DIR)
+                        if do_download and 'URL' in item:
+                            download_status = download_file(item['URL'], DOWNLOAD_DIR)
                         categories = article.find('span', class_='category')
                         if categories:
                             cat_links = categories.find_all('a')
@@ -127,13 +129,13 @@ def scrape_articles_from_pages(url):
     print(items_processed, 'items processed')
     return article_list
 
-def scrape_all_articles(csv_filename, sleep, urls):
+def scrape_all_articles(csv_filename, sleep, urls, do_download):
     writer = OutputWriter(HEADER, csv_filename)
 
     for url in urls:
         data=[]
         try:
-            data = scrape_articles_from_pages(url)
+            data = scrape_articles_from_pages(url, do_download)
             #TODO
             #  break # just do first page for now
         except Exception as e:
@@ -157,6 +159,7 @@ def setup_command_line():
     cmdline.add_argument('--url', dest='url', help='URL of the page to scrape. If specified, the other options are ignored.')
     cmdline.add_argument('--method', dest='method',
                          help=f'Grab document data either from archive, region, or category section of website (default is {DEFAULT_METHOD})')
+    cmdline.add_argument('--download', dest='download', action='store_true', default=DEFAULT_DOWNLOAD, help=f'Download files (default is {DEFAULT_DOWNLOAD})')
 
     return cmdline
 
@@ -168,7 +171,7 @@ def main():
     args = setup_command_line().parse_args()
 
     if args.url:
-        print(scrape_articles_from_pages(args.url))
+        print(scrape_articles_from_pages(args.url, args.download))
     else:
         if args.method == 'archive':
             urls = archive_urls(ARCHIVE_URL)
@@ -182,7 +185,7 @@ def main():
             print('Invalid method specified. Must be archive or region')
             sys.exit(1)
 
-        scrape_all_articles(args.output, args.sleep, urls)
+        scrape_all_articles(args.output, args.sleep, urls, args.download)
 
 
 if __name__ == '__main__':

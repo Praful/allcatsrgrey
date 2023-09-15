@@ -88,14 +88,6 @@ documents. There are three sources of these documents:
    Collection](https://allcatsrgrey.org.uk/wp/find-grey-literature/) the page where, 
    on the right hand side, is a drop down menu for selecting a category.
 
-The documents found can be downloaded but this script _doesn't_ download them because 
-there are about 9,900 downloads for the archive section alone. If you do want to 
-download the documents, uncomment the second line in the script:
-
-```
-#  TODO do we need to download these?
-#  download_status = download_file(url, DOWNLOAD_DIR)
-```
 
 Examples of collecting data using these three methods:
 ```
@@ -112,6 +104,31 @@ category URLs in `category-urls.txt`. You can recreate the list by either renami
 urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME )
 ```
 
+### Downloading documents
+By default, this script _doesn't_ download any documents because there are about 9,900 downloads for the archive section alone. If you do want to download the documents, use the `--download` switch
+
+```
+python allcatsgrey_documents.py --method archive --csv archive.csv --download
+```
+If you specify `--download`, the script will download documents into folder `archive-docs`. If the folder doesn't exist, it will be be created.
+
+_Do not download documents for the `--method category` option._ There are about 96,000 documents! 
+Most of them are duplicates and will be downloaded again and renamed with suffix `.1`, 
+`.2`,` .3`, etc.
+
+When you look at the downloads in `archive-docs`, most of them won't have an 
+extension. The small subset I downloaded were PDF files. You can add an extension to 
+these files using the Linux `rename` command:
+
+```
+cd archive-docs
+rename 's/(.*)/$1.pdf/' * 
+```
+Note: there are different versions of `rename` for different Linux distributions. 
+You may want to test the command in another folder first!
+
+
+### Analysis of archive, category and region data
 On analysis, the documents found via the archive links and the category links are the same once the 
 category CSV file is de-duplicated. Therefore, the complete data for the site is the 
 collection CSV and the archive CSV. My assumption is that the collection data maps to 
