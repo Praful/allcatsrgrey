@@ -30,7 +30,7 @@ ARCHIVE_URL ='https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standa
 CATEGORY_URL = 'https://allcatsrgrey.org.uk/wp/find-grey-literature/'
 CATEGORY_URL_FILENAME = './category-urls.txt'
 
-HEADER = ['Title', 'Date', 'Categories', 'URL', 'Error']
+HEADER = ['Title', 'Date', 'Categories', 'URL', 'Download', 'Error']
 
 
 import mechanize
@@ -99,18 +99,20 @@ def scrape_articles_from_pages(url, do_download):
                     try:
                         link = article.find('a')
                         if link:
-                            item['URL'] = link['href']
+                            item['URL'] = real_url(link['href'])
                             item['Title'] = link['title']
                         datetime = article.find('time', class_='entry-date published')
                         item['Date'] = datetime['datetime'] if datetime else ''
 
-                        if do_download and 'URL' in item:
-                            download_status = download_file(item['URL'], DOWNLOAD_DIR)
                         categories = article.find('span', class_='category')
                         if categories:
                             cat_links = categories.find_all('a')
                             if cat_links:
-                                item['Categories'] = '\n'.join([link.text for link in cat_links])
+                                item['Categories'] = ';'.join([link.text for link in cat_links])
+
+                        if do_download and 'URL' in item:
+                            item['Download'] = download_file(item['URL'], DOWNLOAD_DIR)
+
                     except Exception as e:
                         print('Error fetching page', url, e)
                         traceback.print_exc()
@@ -135,8 +137,7 @@ def scrape_all_articles(csv_filename, sleep, urls, do_download):
         data=[]
         try:
             data = scrape_articles_from_pages(url, do_download)
-            #TODO
-            #  break # just do first page for now
+            #  break # uncomment to stop after first page (for testing)
         except Exception as e:
             print('Error fetching page', url, e)
             traceback.print_exc()

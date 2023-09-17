@@ -17,6 +17,7 @@ import re
 import requests
 
 TAB = '\t'
+NEW_TAB_INDICATOR = '#new_tab'
 
 def file_to_array(filename, strip=False):
     """ return list of strings, one line per list entry"""
@@ -104,7 +105,8 @@ class OutputWriter:
         header_rquired = False if not self.filename or (
             self.filename and os.path.isfile(self.filename)) else True
         with smart_open(self.filename, 'a') as output:
-            writer = csv.writer(output, delimiter=self.delim, lineterminator='\r\n')
+            #  writer = csv.writer(output, delimiter=self.delim, lineterminator='\r\n')
+            writer = csv.writer(output, delimiter=self.delim, lineterminator='\n')
             if header_rquired:
                 writer.writerow(self.csv_header())
 
@@ -112,15 +114,28 @@ class OutputWriter:
                 writer.writerow(self.as_row(item))
 
 
+
+
+def real_url(url):
+    result = requests.head(url, allow_redirects=True).url
+    return clean_url(result)
+
+def clean_url(url):
+    if url:
+        result = url.strip()
+        if result.endswith(NEW_TAB_INDICATOR):
+            result = result[:-len(NEW_TAB_INDICATOR)]
+        return result
+    return ''
+
 def download_file(url, folder):
     try:
-        url_clean = url.strip()
-        if url_clean:
+        if url:
             #  os.system('wget --append-output=wget-output.log --no-verbose --directory-prefix=docs %s' % url_clean)
             os.system('wget --no-verbose --directory-prefix=%s %s' %
-                      (folder, url_clean))
+                      (folder, url))
 
-            doc_name = url_clean.rsplit('/', 1)[-1]
+            doc_name = url.rsplit('/', 1)[-1]
             file = os.path.join('.', folder, doc_name)
             if os.path.isfile(file):
                 return file
@@ -130,6 +145,13 @@ def download_file(url, folder):
             return 'Warning: Blank URL provided'
     except Exception as e:
         return f'Error downloading {url}: {e}'
+
+#  r = requests.get(url, allow_redirects=True)  # to get content after redirection
+#  pdf_url = r.url # 'https://media.readthedocs.org/pdf/django/latest/django.pdf'
+#  with open('file_name.pdf', 'wb') as f:
+    #  f.write(r.content)
+
+
 
 def get_page(url):
     def page_found(code):
