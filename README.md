@@ -104,28 +104,47 @@ category URLs in `category-urls.txt`. You can recreate the list by either renami
 urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME )
 ```
 
+In the most recent of `allcatsgrey_documents.py`, the URLs are looked up (following URL redirects) and resolved so that the final URL is shown in the output, which includes the full file name. This makes running the script slow.
+
 ### Downloading documents
-By default, this script _doesn't_ download any documents because there are about 9,900 downloads for the archive section alone. If you do want to download the documents, use the `--download` switch
+
+There are two ways to download documents.
+
+#### Option 1: using `wget`
+In the `output` folder is the output of the most archive run. It includes the CSV 
+   file and a URL file. The URL list was extracted from the CSV file using command:
+```
+cat archive-20230917.csv | cut -f4 -d$'\t' >urls.txt
+```
+With the URL, you can use `wget` to download the documents. Here's an example:
+```
+wget -N -x -i urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
+```
+In this example, the command will recreate the directory structure in the URL (`-x`) into the 
+`downloads` directory. `wget` output will be _appended_ to `wget-output.log`. Use 
+`-o` to overwrite the log file. The `-N` option will download files only if they don't exist locally or are newer than your local copy. This lets you re-run the command without having to edit the `urls.txt` file or to download files you've already downloaded.
+
+
+This download method is faster than Option 2 below.
+
+#### Option 2: using built-in `--download`
+By default, this script _doesn't_ download any documents because there are about 9,900 downloads for the archive section alone. To download documents while scraping the website, use the `--download` switch.
 
 ```
 python allcatsgrey_documents.py --method archive --csv archive.csv --download
 ```
-If you specify `--download`, the script will download documents into folder `archive-docs`. If the folder doesn't exist, it will be be created.
+If you specify `--download`, the script will download documents into folder 
+`downloads`. If the folder doesn't exist, it will be be created. In `downloads`, the 
+directory structure of the URL will be created. The script uses the `wget` to 
+download files using similar options to the `wget` in Option 1 above.
+
+This option is slower than Option 1 because URLs have to be first looked up and 
+resolved since most of the raw URLs scraped are redirected. Option 1 uses the 
+redirected URLs, which speeds up the process.
 
 _Do not download documents for the `--method category` option._ There are about 96,000 documents! 
-Most of them are duplicates and will be downloaded again and renamed with suffix `.1`, 
-`.2`,` .3`, etc.
-
-When you look at the downloads in `archive-docs`, most of them won't have an 
-extension. The small subset I downloaded were PDF files. You can add an extension to 
-these files using the Linux `rename` command:
-
-```
-cd archive-docs
-rename 's/(.*)/$1.pdf/' * 
-```
-Note: there are different versions of `rename` for different Linux distributions. 
-You may want to test the command in another folder first!
+Most of them are duplicates. They won't be re-downloaded but all the documents are 
+available via the `--method archive` option.
 
 
 ### Analysis of archive, category and region data
@@ -135,6 +154,8 @@ collection CSV and the archive CSV. My assumption is that the collection data ma
 the archive data. That is, the archive documents are some of the documents the 
 collection indexes. There are about 18,000 collection items and 9,900 archive 
 documents. _Work is required to link The Collection index to the documents._
+
+To summarise: _there is no need to run_ `allcatsfrey_documents.py` with options `--method category` or `--method region` since `--method archive` returns everything.
 
 ## category_urls.py
 

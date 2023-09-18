@@ -132,7 +132,8 @@ def download_file(url, folder):
     try:
         if url:
             #  os.system('wget --append-output=wget-output.log --no-verbose --directory-prefix=docs %s' % url_clean)
-            os.system('wget --no-verbose --directory-prefix=%s %s' %
+            #  -x mirrors the directory structure of the download
+            os.system('wget -x -N --no-verbose --directory-prefix=%s %s' %
                       (folder, url))
 
             doc_name = url.rsplit('/', 1)[-1]

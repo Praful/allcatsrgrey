@@ -24,16 +24,13 @@ DEFAULT_SLEEP = 3
 DEFAULT_METHOD = 'archive'
 DEFAULT_DOWNLOAD = False
 TAB = '\t'
-DOWNLOAD_DIR = 'archive-docs'
-REGION_URL ='https://allcatsrgrey.org.uk/wp/find-grey-literature/'
-ARCHIVE_URL ='https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127'
+DOWNLOAD_DIR = 'downloads'
+REGION_URL = 'https://allcatsrgrey.org.uk/wp/find-grey-literature/'
+ARCHIVE_URL = 'https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127'
 CATEGORY_URL = 'https://allcatsrgrey.org.uk/wp/find-grey-literature/'
 CATEGORY_URL_FILENAME = './category-urls.txt'
 
 HEADER = ['Title', 'Date', 'Categories', 'URL', 'Download', 'Error']
-
-
-import mechanize
 
 
 def region_urls(url):
@@ -41,7 +38,7 @@ def region_urls(url):
 
     if soup is None:
         return []
-    
+
     container = soup.find_all('li', class_='menu-item')
     if container:
         for listitem in container:
@@ -53,6 +50,7 @@ def region_urls(url):
 
     return []
 
+
 def archive_urls(url):
     soup = get_page(url)
 
@@ -62,7 +60,7 @@ def archive_urls(url):
     archive = soup.find('div', id='secondary')
     links = archive.find_all('a')
 
-    if links: 
+    if links:
         return [item['href'] for item in links]
 
     return []
@@ -81,13 +79,15 @@ def get_next_url(soup):
 
     return None
 
+
 items_processed = 0
+
 
 def scrape_articles_from_pages(url, do_download):
     global items_processed
     print('============= Processing page:', url)
     next_url = url
-    article_list=[]
+    article_list = []
     while next_url:
         soup = get_page(next_url)
         print('      ----- Processing next page', next_url)
@@ -101,17 +101,20 @@ def scrape_articles_from_pages(url, do_download):
                         if link:
                             item['URL'] = real_url(link['href'])
                             item['Title'] = link['title']
-                        datetime = article.find('time', class_='entry-date published')
+                        datetime = article.find(
+                            'time', class_='entry-date published')
                         item['Date'] = datetime['datetime'] if datetime else ''
 
                         categories = article.find('span', class_='category')
                         if categories:
                             cat_links = categories.find_all('a')
                             if cat_links:
-                                item['Categories'] = ';'.join([link.text for link in cat_links])
+                                item['Categories'] = ';'.join(
+                                    [link.text for link in cat_links])
 
                         if do_download and 'URL' in item:
-                            item['Download'] = download_file(item['URL'], DOWNLOAD_DIR)
+                            item['Download'] = download_file(
+                                item['URL'], DOWNLOAD_DIR)
 
                     except Exception as e:
                         print('Error fetching page', url, e)
@@ -126,15 +129,15 @@ def scrape_articles_from_pages(url, do_download):
             print('Warning: No soup found for archive month url', url)
             break
 
-
     print(items_processed, 'items processed')
     return article_list
+
 
 def scrape_all_articles(csv_filename, sleep, urls, do_download):
     writer = OutputWriter(HEADER, csv_filename)
 
     for url in urls:
-        data=[]
+        data = []
         try:
             data = scrape_articles_from_pages(url, do_download)
             #  break # uncomment to stop after first page (for testing)
@@ -146,6 +149,7 @@ def scrape_all_articles(csv_filename, sleep, urls, do_download):
 
         time.sleep(sleep)
 
+
 def setup_command_line():
     """
     Define command line switches
@@ -156,10 +160,12 @@ def setup_command_line():
                          'to if it exists (default output is to console)')
     cmdline.add_argument('--sleep', type=int, default=DEFAULT_SLEEP,
                          help=f'Time to pause (in seconds) between fetching pages (default is {DEFAULT_SLEEP} seconds)')
-    cmdline.add_argument('--url', dest='url', help='URL of the page to scrape. If specified, the other options are ignored.')
+    cmdline.add_argument(
+        '--url', dest='url', help='URL of the page to scrape. If specified, the other options are ignored.')
     cmdline.add_argument('--method', dest='method',
                          help=f'Grab document data either from archive, region, or category section of website (default is {DEFAULT_METHOD})')
-    cmdline.add_argument('--download', dest='download', action='store_true', default=DEFAULT_DOWNLOAD, help=f'Download files (default is {DEFAULT_DOWNLOAD})')
+    cmdline.add_argument('--download', dest='download', action='store_true',
+                         default=DEFAULT_DOWNLOAD, help=f'Download files (default is {DEFAULT_DOWNLOAD})')
 
     return cmdline
 
@@ -180,7 +186,7 @@ def main():
         elif args.method == 'category':
             # uncomment to regenerate category urls. Warning: this is slow!
             #  urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME, True )
-            urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME )
+            urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME)
         else:
             print('Invalid method specified. Must be archive or region')
             sys.exit(1)
