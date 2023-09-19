@@ -79,7 +79,9 @@ python allcatsgrey_collection.py --url 'https://allcatsrgrey.org.uk/wp/find-grey
 ## allcatsgrey_documents.py
 
 This script scrapes data from various parts of the website that have downloadable 
-documents. There are three sources of these documents:
+documents. There are three routes to these documents, which _all point to the same files_. (For more information, see the section below _Analysis of archive, category, and region data._)
+
+The three paths on the website to the documents are:
 
 1. Archive, eg the Archives section on the left side of [this 
    page](https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127).
@@ -88,8 +90,9 @@ documents. There are three sources of these documents:
    Collection](https://allcatsrgrey.org.uk/wp/find-grey-literature/) the page where, 
    on the right hand side, is a drop down menu for selecting a category.
 
+Note, however, that all the documents are available via the archive method. Therefore you never need to run the script using the `category` or `region` options. You don't have to run the `archive` option unless in the unlikely situation that it is updated. The output of the archive files is provided in the output folder.
 
-Examples of collecting data using these three methods:
+If you do want to see the output of these options, here are some Examples of collecting data using these three methods:
 ```
 python allcatsgrey_documents.py --method archive --csv archive.csv
 python allcatsgrey_documents.py --method region --csv region.csv
@@ -106,6 +109,7 @@ urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME )
 
 In the most recent of `allcatsgrey_documents.py`, the URLs are looked up (following URL redirects) and resolved so that the final URL is shown in the output, which includes the full file name. This makes running the script slow.
 
+
 ### Downloading documents
 
 There are two ways to download documents.
@@ -116,11 +120,11 @@ In the `output` folder is the output of the most archive run. It includes the CS
 ```
 cat archive-20230917.csv | cut -f4 -d$'\t' >urls.txt
 ```
-With the URL, you can use `wget` to download the documents. Here's an example:
+With the URL file, you can use the `wget` command to download the documents. Here's an example:
 ```
 wget -N -x -i urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
 ```
-In this example, the command will recreate the directory structure in the URL (`-x`) into the 
+In this example, the command will recreate the directory structure in the URL (`-x`) in the 
 `downloads` directory. `wget` output will be _appended_ to `wget-output.log`. Use 
 `-o` to overwrite the log file. The `-N` option will download files only if they don't exist locally or are newer than your local copy. This lets you re-run the command without having to edit the `urls.txt` file or to download files you've already downloaded.
 
@@ -135,8 +139,8 @@ python allcatsgrey_documents.py --method archive --csv archive.csv --download
 ```
 If you specify `--download`, the script will download documents into folder 
 `downloads`. If the folder doesn't exist, it will be be created. In `downloads`, the 
-directory structure of the URL will be created. The script uses the `wget` to 
-download files using similar options to the `wget` in Option 1 above.
+directory structure of the URL will be created. The script uses the `wget` command to 
+download files using similar options to the `wget` command in Option 1 above.
 
 This option is slower than Option 1 because URLs have to be first looked up and 
 resolved since most of the raw URLs scraped are redirected. Option 1 uses the 
@@ -144,10 +148,10 @@ redirected URLs, which speeds up the process.
 
 _Do not download documents for the `--method category` option._ There are about 96,000 documents! 
 Most of them are duplicates. They won't be re-downloaded but all the documents are 
-available via the `--method archive` option.
+available via the `--method archive` option. However, Option 1 is faster because the documents have already been collected.
 
 
-### Analysis of archive, category and region data
+### Analysis of archive, category, and region data
 On analysis, the documents found via the archive links and the category links are the same once the 
 category CSV file is de-duplicated. Therefore, the complete data for the site is the 
 collection CSV and the archive CSV. My assumption is that the collection data maps to 
@@ -168,4 +172,5 @@ call it directly.
 
 # Output
 
-The `output` folder contains a zip file of all the data scraped.
+The `output` folder contains a zip file of all the data scraped: collection data, 
+archive data, category data, and region data.
