@@ -31,13 +31,12 @@ import time
 from utils import *
 from bs4 import BeautifulSoup
 
-DEFAULT_SLEEP = 15
-
+DEFAULT_SLEEP = 60
 HEADER = ['Title', 'Categories', 'URL', 'Error']
+DOWNLOADS_TREEVIEW_URL = "https://allcatsrgrey.org.uk/wp/downloads/"
+
 WEBDRIVER_PATH = '/opt/chromedriver/chromedriver'
 CHROME_BINARY_PATH = '/opt/chromedriver/chrome-linux64/chrome'
-
-DOWNLOADS_TREEVIEW_URL = "https://allcatsrgrey.org.uk/wp/downloads/"
 
 
 def init_driver():
@@ -58,11 +57,6 @@ def init_driver():
     #  driver.implicitly_wait(30)
     return driver
 
-# Set the URL of the page with the tree control
-
-# Define a function to expand all nodes in the tree by clicking on a <div> element
-
-
 class Scraper:
     def __init__(self, writer, driver, sleep):
         self.writer = writer
@@ -70,13 +64,10 @@ class Scraper:
         self.sleep = sleep
 
     def scrape_node(self, node, node_categories=None):
-        # expand node
-
         result = []
         categories = ''
 
         try:
-            #  node.click()
             node_id = node.get_attribute('id')
             print('============ Processing node', node_id)
             button = node.find_element(By.TAG_NAME, 'a')
@@ -153,7 +144,9 @@ def main():
     driver.get(DOWNLOADS_TREEVIEW_URL)
     try:
         treeview = driver.find_element(By.CLASS_NAME, "treeview")
+        #  treeview.get_attribute
         scraper.process_subnodes(treeview)
+        #  scraper.scrape_node(treenode)
     finally:
         driver.quit()
 
