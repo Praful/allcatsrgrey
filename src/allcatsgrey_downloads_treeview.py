@@ -57,14 +57,14 @@ def init_driver():
     #  driver.implicitly_wait(30)
     return driver
 
+
 class Scraper:
     def __init__(self, writer, driver, sleep):
         self.writer = writer
         self.driver = driver
         self.sleep = sleep
 
-    def scrape_node(self, node, node_categories=None):
-        result = []
+    def scrape_folder(self, node, node_categories=None):
         categories = ''
 
         try:
@@ -83,41 +83,55 @@ class Scraper:
             # provide time to retrieve children
             time.sleep(self.sleep)
 
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            soup_node = soup.find('li', id=node_id)
-            if soup_node:
-                print(categories, soup_node['id'])
-
-                children = soup_node.find_all('li')
-                print(len(children))
-                for child in children:
-                    if child:
-                        if child['id'].startswith('wpfb-file'):
-                            link = child.find('a')
-                            url = link['href']
-                            title = link.text
-                            #  print(child['id'], url, title)
-                            result.append(
-                                {'Title': title, 'Categories': categories, 'URL': url})
+            self.scrape_files(node_id, 'li', categories)
 
         except Exception as e:
             print('Error fetching page', e)
             traceback.print_exc()
 
-        finally:
-            self.writer.as_csv(result)
 
-        self.process_subnodes(node, categories)
+        self.process_subfolders(node, categories)
 
-    def process_subnodes(self, parent, categories=None):
+    def process_subfolders(self, parent, categories=None):
         children = parent.find_elements(By.CLASS_NAME, "hasChildren")
         for child in children:
             try:
-                self.scrape_node(child, categories)
+                self.scrape_folder(child, categories)
             except Exception as e:
                 print('Error fetching child node', child, e)
                 traceback.print_exc()
 
+    def scrape_files(self, node_id, tag='li', categories=None):
+
+        def is_file(o):
+            if o.has_attr('id'):
+                return o['id'].startswith('wpfb-file')
+            return False
+
+        result = []
+        soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        soup_node = soup.find(tag, id=node_id)
+        #  print(soup_node)
+        if soup_node:
+            #  print(categories, soup_node['id'])
+            try:
+                children = soup_node.find_all('li')
+                #  print(len(children))
+                for child in children:
+                    if child:
+                        #  print('--------------', child)
+                        if is_file(child):
+                            link = child.find('a')
+                            url = link['href']
+                            title = link.text
+                            print(child['id'], url, title)
+                            result.append(
+                                {'Title': title, 'Categories': categories, 'URL': url})
+            except Exception as e:
+                print('Error fetching page', e)
+                traceback.print_exc()
+            finally:
+                self.writer.as_csv(result)
 
 def setup_command_line():
     """
@@ -144,9 +158,8 @@ def main():
     driver.get(DOWNLOADS_TREEVIEW_URL)
     try:
         treeview = driver.find_element(By.CLASS_NAME, "treeview")
-        #  treeview.get_attribute
-        scraper.process_subnodes(treeview)
-        #  scraper.scrape_node(treenode)
+        scraper.scrape_files(treeview.get_attribute('id'), 'ul')
+        scraper.process_subfolders(treeview)
     finally:
         driver.quit()
 
