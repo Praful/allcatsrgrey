@@ -12,13 +12,13 @@ python <script name> --help
 
 # Background
 
-The purpose of this project was originally to scrape data from the The Collection on the [National Grey Literature Collection](https://allcatsrgrey.org.uk) website.
+The purpose of this project was originally to scrape data from The Collection on the [National Grey Literature Collection](https://allcatsrgrey.org.uk) website.
 
 After that was achieved, I found that the 18,000 records in The Collection referenced 
 only about 50 documents. The expectation was that this should have been closer to 10,000 
 documents.
 
-On further investigation, I found that there are documents (eg pdf, Word, and Excel 
+On further investigation, I found that there are documents (eg PDF, Word, and Excel 
 files) on the web site. These are referenced in the following ways:
 
 1. The chronological [archive](https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127) pages.
@@ -43,7 +43,7 @@ is required to download the files, which is described below in the `Downloading 
 
 The key files are The Collection data, the archive data, and the downloads data.
 
-The archive, region, and downloads data are provided in a ZIP file. Each contains the scraped data 
+The archive, region, and downloads data are provided in their own ZIP file. Each ZIP file contains the scraped data 
 in CSV format (tab separated) and the URLs of the documents referenced. The URL files 
 can be used to download the documents. The command to download referenced documents 
 is provided below in the `Downloading documents` section. There are about 13,000 files to download in total.
@@ -53,7 +53,7 @@ is provided below in the `Downloading documents` section. There are about 13,000
 On analysis, the documents found via the archive links and the category links are the same once the 
 category CSV file is de-duplicated. There are about 75 document references in the region data 
 that are not in the archive data. However, on downloading the region documents, no new 
-files were downloaded. So this may be reconciliation issue. The archives data and downloads data overlap.
+files were downloaded. So this may be reconciliation issue. The archive data and downloads data overlap.
 
 My assumption is that The Collection index maps to the downloadable documents. There are about 18,000 collection items and 13,000 downloadable documents. _Work is required to link The Collection index to the downloadable documents._
 
@@ -174,10 +174,10 @@ python allcatsgrey_collection.py --url 'https://allcatsrgrey.org.uk/wp/find-grey
 ```
 ## allcatsgrey_documents.py
 
-This script scrapes data from the archive, category and regions pages, which all have 
-links to downloadable documents. These cover three of the four routes to these documents, which _all point to the same files_. (For more information, see the section below _Analysis of downloadable files._)
+This script scrapes data from the archive, category and region pages, which all have 
+links to downloadable documents, most of which are PDF files. These cover three of the four routes to these documents, which _all point to the same files_. (For more information, see the section below _Analysis of downloadable files._)
 
-A fourth route to the downloads page is described in the section on `allcatsrgrey_downloads.py`.
+A fourth route to the downloads page is described in the section on `allcatsrgrey_downloads.py` below.
 
 The links on the website to the documents are:
 
@@ -188,7 +188,7 @@ The links on the website to the documents are:
    Collection](https://allcatsrgrey.org.uk/wp/find-grey-literature/) the page where, 
    on the right hand side, is a drop down menu for selecting a category.
 
-Note, however, that all the documents are available via the archive method. Therefore you never need to run the script using the `category` or `region` options. You don't have to run the `archive` option unless in the unlikely situation that it is updated. The output of the archive files is provided in the output folder.
+Note, however, that all the documents are available via the archive method. Therefore you never need to run the script using the `category` or `region` options. You don't have to run the `archive` option unless in the unlikely situation that it is updated. The output of the archive option is provided in the output folder.
 
 If you do want to see the output of these options, here are some examples of collecting data using these three methods:
 ```
@@ -205,21 +205,22 @@ category URLs in `category-urls.txt`. You can recreate the list by either renami
 urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME )
 ```
 
-In the most recent of `allcatsgrey_documents.py`, the URLs are looked up (following URL redirects) and resolved so that the final URL is shown in the output, which includes the full file name. This makes running the script slow.
+In the most recent version of `allcatsgrey_documents.py`, the URLs are looked up (following URL redirects) and resolved so that the final URL is shown in the output, which includes the full file name. This makes running the script slow.
 
 
 ## category_urls.py
 
 This script gets the URLS for each category. It uses the `selenium` library to get 
 the pages. I couldn't work out how to use the `beautifulsoup` library (used by most of the 
-code) to submit a form that is submitted in a change event of the `select` control.
+code) to submit a form that is submitted in a change event of the `select` control. 
+It may not be possible. The `selenium` library is designed to programmatically interact with web pages.
 
 This script is called by the `allcatsgrey_documents.py` script. You don't need to 
 call it directly.
 
 ## allcatsgrey_downloads.py
 
-This script "walks" the treeview on the [downloads page](https://allcatsrgrey.org.uk/wp/downloads/). The treeview (similar to Windows Explorer file manager) is dynamically loaded. All file links are recursively scraped from the page. The "folder" and "subfolder" names are used to categorise the downloads.
+This script "walks" the treeview on the [downloads page](https://allcatsrgrey.org.uk/wp/downloads/). The treeview (similar to Windows Explorer file manager) is dynamically loaded using the `selenium` library. All file links are recursively scraped from the page. The "folder" and "subfolder" names are used to categorise the downloads.
 
 To run the script, use:
 ```
