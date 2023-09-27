@@ -10,6 +10,104 @@ The main scripts all have help for the command line arguments. To see the help, 
 python <script name> --help
 ```
 
+# Background
+
+The purpose of this project was originally to scrape data from the The Collection on the [National Grey Literature Collection](https://allcatsrgrey.org.uk) website.
+
+After that was achieved, I found that the 18,000 records in The Collection referenced 
+only about 50 documents. The expectation was that this should have been closer to 10,000 
+documents.
+
+On further investigation, I found that there are documents (eg pdf, Word, and Excel 
+files) on the web site. These are referenced in the following ways:
+
+1. The chronological [archive](https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127) pages.
+2. The [category](https://allcatsrgrey.org.uk/wp/find-grey-literature/) search on various pages (via the _Select Category_ dropdown box).
+3. The region pages (hover over The Collection menu item).
+4. The [downloads](https://allcatsrgrey.org.uk/wp/downloads/) page.
+
+After Scraping these four sources and analysing the data, I found that the archive 
+and downloads pages, between them, referenced about 13,000 documents. The category 
+and region links were a subset of the archive/download documents.
+
+If you are interested in just the output, it is all available in the [output 
+folder](https://github.com/Praful/allcatsrgrey/tree/main/output) on this repo. See 
+section `Downloading documents` below if you want to download the referenced files.
+
+# Output
+
+The [output folder](https://github.com/Praful/allcatsrgrey/tree/main/output) contains a zip file of all the data scraped: collection data, 
+archive data, category data, region data, and downloads data. Note: these files 
+contain the data scraped off the website not the files they refer to. A further step 
+is required to download the files, which is described below in the `Downloading documents` section.
+
+The key files are The Collection data, the archive data, and the downloads data.
+
+The archive, region, and downloads data are provided in a ZIP file. Each contains the scraped data 
+in CSV format (tab separated) and the URLs of the documents referenced. The URL files 
+can be used to download the documents. The command to download referenced documents 
+is provided below in the `Downloading documents` section. There are about 13,000 files to download in total.
+
+# Analysis of downloadable files
+
+On analysis, the documents found via the archive links and the category links are the same once the 
+category CSV file is de-duplicated. There are about 75 document references in the region data 
+that are not in the archive data. However, on downloading the region documents, no new 
+files were downloaded. So this may be reconciliation issue. The archives data and downloads data overlap.
+
+My assumption is that The Collection index maps to the downloadable documents. There are about 18,000 collection items and 13,000 downloadable documents. _Work is required to link The Collection index to the downloadable documents._
+
+
+# Downloading documents
+
+There are two ways to download documents.
+
+## Option 1: using `wget`
+
+The `output` folder contains the latest scraped data. For archive, region and 
+downloads data, the output folder contains a zip file. The ZIP file contains a CSV 
+   file and a URL file. The URL list was extracted from the CSV file using the `cut` command, eg,
+```
+cat archive-20230917.csv | cut -f4 -d$'\t' >urls.txt
+```
+With the URL file, you can use the `wget` command to download the documents. The 
+following commands will download _all referenced documents_:
+```
+wget -N -x -i archive-urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
+wget -N -x -i downloads-urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
+```
+Change the filenames to the latest filenames in the `output` folder.
+
+The above `wget` command will recreate the directory structure in the URL (`-x`) in the 
+`downloads` directory. `wget` output will be _appended_ to `wget-output.log`. Use 
+`-o` to overwrite the log file. The `-N` option will download files only if they don't exist locally or are newer than your local copy. This lets you re-run the command without having to edit the URL files or to download files you've already downloaded.
+
+
+This download method is faster than Option 2 below.
+
+## Option 2: using built-in `--download`
+
+For `allcatsgrey_documents.py`, you can use the `--download` option.
+
+```
+python allcatsgrey_documents.py --method archive --csv archive.csv --download
+```
+
+If you specify `--download`, the script will download documents into folder 
+`downloads`. If the folder doesn't exist, it will be be created. In `downloads`, the 
+directory structure of the URL will be created. The script uses the `wget` command to 
+download files using similar options to the `wget` command in Option 1 above.
+
+This option is slower than Option 1 because URLs have to be first looked up and 
+resolved since most of the raw URLs scraped are redirected. Option 1 uses the 
+redirected URLs, which speeds up the process.
+
+_Do not download documents for the `--method category` option._ There are about 96,000 documents! 
+Most of them are duplicates. They won't be re-downloaded but all the documents are 
+available via the `--method archive` option. However, Option 1 is faster because the URL redirections are resolved.
+
+There is no `--download` option for `allcatsrgrey_downloads.py`. Therefore, use 
+Option 1.
 # Installation
 The code was tested using [Python 3.11](https://www.python.org/downloads/) on Linux Mint 21.2. However, it should work on any operating system supporting a recent version of Python 3.
 
@@ -18,12 +116,10 @@ To install the required packages, use
 ```
 pip install -r requirements.txt 
 ```
-If you want to scrape documents URLS referenced by categories, you'll need to install the 
+If you want to scrape documents URLS referenced by categories or the downloads, you'll need to install the 
 Chrome browser and the chrome driver from 
 [here](https://googlechromelabs.github.io/chrome-for-testing/) and edit 
-`category_urls.py` to set the path of `chrome` and `chromedriver`. By default, the 
-code uses the pre-scraped `category-urls.txt` file since it's a lengthy process to 
-scrape the category URLs.
+`category_urls.py` and `allcatsrgrey_downloads.py` to set the path of `chrome` and `chromedriver`. By default, `category_urls.py` uses the pre-scraped `category-urls.txt` file since it's a lengthy process to scrape the category URLs.
 
 # Scripts
 
@@ -78,10 +174,12 @@ python allcatsgrey_collection.py --url 'https://allcatsrgrey.org.uk/wp/find-grey
 ```
 ## allcatsgrey_documents.py
 
-This script scrapes data from various parts of the website that have downloadable 
-documents. There are three routes to these documents, which _all point to the same files_. (For more information, see the section below _Analysis of archive, category, and region data._)
+This script scrapes data from the archive, category and regions pages, which all have 
+links to downloadable documents. These cover three of the four routes to these documents, which _all point to the same files_. (For more information, see the section below _Analysis of downloadable files._)
 
-The three paths on the website to the documents are:
+A fourth route to the downloads page is described in the section on `allcatsrgrey_downloads.py`.
+
+The links on the website to the documents are:
 
 1. Archive, eg the Archives section on the left side of [this 
    page](https://allcatsrgrey.org.uk/wp/wpfb-file/cervical_screening_standards_data_report_2018_to_2019-pdf/#wpfb-cat-127).
@@ -92,7 +190,7 @@ The three paths on the website to the documents are:
 
 Note, however, that all the documents are available via the archive method. Therefore you never need to run the script using the `category` or `region` options. You don't have to run the `archive` option unless in the unlikely situation that it is updated. The output of the archive files is provided in the output folder.
 
-If you do want to see the output of these options, here are some Examples of collecting data using these three methods:
+If you do want to see the output of these options, here are some examples of collecting data using these three methods:
 ```
 python allcatsgrey_documents.py --method archive --csv archive.csv
 python allcatsgrey_documents.py --method region --csv region.csv
@@ -110,57 +208,6 @@ urls = category_urls(CATEGORY_URL, CATEGORY_URL_FILENAME )
 In the most recent of `allcatsgrey_documents.py`, the URLs are looked up (following URL redirects) and resolved so that the final URL is shown in the output, which includes the full file name. This makes running the script slow.
 
 
-### Downloading documents
-
-There are two ways to download documents.
-
-#### Option 1: using `wget`
-In the `output` folder is the output of the most archive run. It includes the CSV 
-   file and a URL file. The URL list was extracted from the CSV file using command:
-```
-cat archive-20230917.csv | cut -f4 -d$'\t' >urls.txt
-```
-With the URL file, you can use the `wget` command to download the documents. Here's an example:
-```
-wget -N -x -i urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
-```
-In this example, the command will recreate the directory structure in the URL (`-x`) in the 
-`downloads` directory. `wget` output will be _appended_ to `wget-output.log`. Use 
-`-o` to overwrite the log file. The `-N` option will download files only if they don't exist locally or are newer than your local copy. This lets you re-run the command without having to edit the `urls.txt` file or to download files you've already downloaded.
-
-
-This download method is faster than Option 2 below.
-
-#### Option 2: using built-in `--download`
-By default, this script _doesn't_ download any documents because there are about 9,900 downloads for the archive section alone. To download documents while scraping the website, use the `--download` switch.
-
-```
-python allcatsgrey_documents.py --method archive --csv archive.csv --download
-```
-If you specify `--download`, the script will download documents into folder 
-`downloads`. If the folder doesn't exist, it will be be created. In `downloads`, the 
-directory structure of the URL will be created. The script uses the `wget` command to 
-download files using similar options to the `wget` command in Option 1 above.
-
-This option is slower than Option 1 because URLs have to be first looked up and 
-resolved since most of the raw URLs scraped are redirected. Option 1 uses the 
-redirected URLs, which speeds up the process.
-
-_Do not download documents for the `--method category` option._ There are about 96,000 documents! 
-Most of them are duplicates. They won't be re-downloaded but all the documents are 
-available via the `--method archive` option. However, Option 1 is faster because the documents have already been collected.
-
-
-### Analysis of archive, category, and region data
-On analysis, the documents found via the archive links and the category links are the same once the 
-category CSV file is de-duplicated. Therefore, the complete data for the site is the 
-collection CSV and the archive CSV. My assumption is that the collection data maps to 
-the archive data. That is, the archive documents are some of the documents the 
-collection indexes. There are about 18,000 collection items and 9,900 archive 
-documents. _Work is required to link The Collection index to the documents._
-
-To summarise: _there is no need to run_ `allcatsfrey_documents.py` with options `--method category` or `--method region` since `--method archive` returns everything.
-
 ## category_urls.py
 
 This script gets the URLS for each category. It uses the `selenium` library to get 
@@ -170,7 +217,14 @@ code) to submit a form that is submitted in a change event of the `select` contr
 This script is called by the `allcatsgrey_documents.py` script. You don't need to 
 call it directly.
 
-# Output
+## allcatsgrey_downloads.py
 
-The `output` folder contains a zip file of all the data scraped: collection data, 
-archive data, category data, and region data.
+This script "walks" the treeview on the [downloads page](https://allcatsrgrey.org.uk/wp/downloads/). The treeview (similar to Windows Explorer file manager) is dynamically loaded. All file links are recursively scraped from the page. The "folder" and "subfolder" names are used to categorise the downloads.
+
+To run the script, use:
+```
+python allcatsgrey_downloads.py --csv downloads.csv
+```
+The CSV filename can be changed.
+
+To download the files, use the `wget` command described in Option 1 above in the `Downloading documents` section.
