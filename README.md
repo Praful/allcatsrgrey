@@ -73,13 +73,13 @@ cat archive-20230917.csv | cut -f4 -d$'\t' >urls.txt
 With the URL file, you can use the `wget` command to download the documents. The 
 following commands will download _all referenced documents_:
 ```
-wget -N -x -i archive-urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
-wget -N -x -i downloads-urls.txt --directory-prefix=downloads -a wget-output.log --show-progress
+wget -N -x -i archive-urls.txt --directory-prefix=downloads -a wget-output-archive.log --show-progress
+wget -N -x -i downloads-urls.txt --directory-prefix=downloads -a wget-output-downloads.log --show-progress
 ```
 Change the filenames to the latest filenames in the `output` folder.
 
 The above `wget` command will recreate the directory structure in the URL (`-x`) in the 
-`downloads` directory. `wget` output will be _appended_ to `wget-output.log`. Use 
+`downloads` directory. `wget` output will be _appended_ to `wget-output*.log`. Use 
 `-o` to overwrite the log file. The `-N` option will download files only if they don't exist locally or are newer than your local copy. This lets you re-run the command without having to edit the URL files or to download files you've already downloaded.
 
 
